@@ -1,0 +1,5 @@
+ - > Principal objetivo do CNPJ e validar a existência de CNPJ Faturamento base Unilever Martins.
+ - > Restruturar para a abse de vendas MRT
+ - > Validação código de barras filial 604 - MD com a base de EAN Unilever: Base Mrt para XLSX
+
+ - > Criar base vendas Unilever MD - > Relacionar CPNJ do cliente com o CNPJ da base "Viu", precisando ["CNPJ", "Codigo_rede", "HC", "FR", "BPC", "Tipo", "Classificação", "Grupo"] - > Proximo passo correlacionar com a base de vendas MD o codigo do produto com a base EANS_PPA para pegar as colunas ["BU", "PPA"] - 

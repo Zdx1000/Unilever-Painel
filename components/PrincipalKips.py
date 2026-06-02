@@ -7,8 +7,8 @@ class PrincipalKips():
         ("YTD", "FATURAMENTO", "VLR_FATURAMENTO", "Real (R$)", False),
         ("Cob. Ponderada", "VENDAS", "QTD_VENDA_POSITIVADA", "Redes", True),
         ("Cob. Ponderada", "FATURAMENTO", "QTD_FATURAMENTO_POSITIVADA", "Redes", True),
-        ("Cob. Numérica", "VENDAS", "COB_NUMERICA_VENDA", "PDVs", False),
-        ("Cob. Numérica", "FATURAMENTO", "COB_NUMERICA_FATURAMENTO", "PDVs", False)
+        ("Cob. Numérica", "VENDAS", "COB_NUMERICA_VENDA", "PDVs", True),
+        ("Cob. Numérica", "FATURAMENTO", "COB_NUMERICA_FATURAMENTO", "PDVs", True)
     )
 
     def __init__(self) -> None:
@@ -42,33 +42,31 @@ class PrincipalKips():
             for bu in self.BUS
         ])
 
-    def _calcular_cobertura_numerica(self, dataframe_Base_de_Lojas: pd.DataFrame) -> pd.DataFrame:
-        if "TIPO" in dataframe_Base_de_Lojas.columns:
-            tipo = dataframe_Base_de_Lojas["TIPO"].astype(str).str.strip().str.casefold()
-            base_numerica = dataframe_Base_de_Lojas[tipo.isin(["numérica", "numerica"])]
+    def _calcular_cobertura_numerica(self, dataframe_Positivadas: pd.DataFrame) -> pd.DataFrame:
+        if "TIPO" in dataframe_Positivadas.columns:
+            tipo = dataframe_Positivadas["TIPO"].astype(str).str.strip().str.casefold()
+            base_numerica = dataframe_Positivadas[tipo.isin(["numérica", "numerica"])]
         else:
-            base_numerica = dataframe_Base_de_Lojas.iloc[0:0]
+            base_numerica = dataframe_Positivadas.iloc[0:0]
 
-        def somar_coluna(coluna: str) -> float:
-            if coluna not in base_numerica.columns:
-                return 0.0
+        def contar_cnpjs_positivados(coluna: str) -> int:
+            if coluna not in base_numerica.columns or "CNPJ" not in base_numerica.columns:
+                return 0
 
-            return float(
-                pd.to_numeric(base_numerica[coluna], errors="coerce").fillna(0).sum()
-            )
+            positivado = pd.to_numeric(base_numerica[coluna], errors="coerce").fillna(0).eq(1)
+            return int(base_numerica.loc[positivado, "CNPJ"].dropna().nunique())
 
         return pd.DataFrame([
             {
                 "BU": bu,
-                "COB_NUMERICA_VENDA": somar_coluna(f"{bu}_VENDA"),
-                "COB_NUMERICA_FATURAMENTO": somar_coluna(f"{bu}_FATURAMENTO")
+                "COB_NUMERICA_VENDA": contar_cnpjs_positivados(f"{bu}_VENDA_POSITIVADA"),
+                "COB_NUMERICA_FATURAMENTO": contar_cnpjs_positivados(f"{bu}_FATURAMENTO_POSITIVADA")
             }
             for bu in self.BUS
         ])
 
     def _calcular_base_metas_e_realizado(self, dataframe_Vendas_Na_Base: pd.DataFrame,
-                                         dataframe_Positivadas: pd.DataFrame,
-                                         dataframe_Base_de_Lojas: pd.DataFrame) -> pd.DataFrame:
+                                         dataframe_Positivadas: pd.DataFrame) -> pd.DataFrame:
         kip = dataframe_Vendas_Na_Base.groupby("BU", as_index=False).agg({
             "VLR_VENDA": "sum",
             "VLR_FATURAMENTO": "sum"
@@ -80,7 +78,7 @@ class PrincipalKips():
             how="outer"
         )
         kip = kip.merge(
-            self._calcular_cobertura_numerica(dataframe_Base_de_Lojas),
+            self._calcular_cobertura_numerica(dataframe_Positivadas),
             on="BU",
             how="outer"
         )
@@ -125,8 +123,7 @@ class PrincipalKips():
         
         kip = self._calcular_base_metas_e_realizado(
             dataframe_Vendas_Na_Base,
-            dataframe_Positivadas,
-            dataframe_Base_de_Lojas
+            dataframe_Positivadas
         )
         
         return self._montar_tabela_metas_e_realizado(kip)

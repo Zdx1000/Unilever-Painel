@@ -389,6 +389,7 @@ if __name__ == "__main__":
         dataframe_ponderadas_meta=dataframe_ponderadas_meta
     )
 
+
     dataframe_KIP = servidor.kips_YTD_por_PDV(dataframe_BaseDeLojas)
     dataframe_KIP_CobPond = servidor.kips_Cob_Pond(positivacao_calculada)
     dataframe_KIP_Sort_Num = servidor.kips_Sort_Cob_Num(positivacao_calculada)
@@ -396,6 +397,7 @@ if __name__ == "__main__":
 
     '''Exportar os DataFrames correlacionados para arquivos Excel'''
 
+    print(dataframe_KIP_final, "\n")
     kip = servidor.metas_e_realizado(tabela_vendas_na_base, positivacao_calculada, dataframe_BaseDeLojas)
     print(kip)
 

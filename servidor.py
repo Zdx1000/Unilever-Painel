@@ -4,10 +4,11 @@ import numpy as np
 from components.ImportarXlsx import ImportarXlsx
 from components.ConveterType import ConveterType
 from components.PadronizarCol import PadronizarCol
+from components.PrincipalKips import PrincipalKips
     
-class Servidor(ImportarXlsx, ConveterType, PadronizarCol):
+class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
     '''Classe principal do projeto, responsável por coordenar as operações de importação, padronização, conversão e correlação dos dados.
-    A classe Servidor herda as funcionalidades das classes ImportarXlsx, ConveterType e PadronizarCol, permitindo a execução de todas as etapas do processo de análise de dados.
+    A classe Servidor herda as funcionalidades das classes ImportarXlsx, ConveterType, PadronizarCol e PrincipalKips, permitindo a execução de todas as etapas do processo de análise de dados.
     
     Atributos:
     Diretorios (str): O caminho do diretório onde os arquivos xlsx estão localizados
@@ -93,9 +94,6 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol):
         ]
 
         dataframe_vendas_na_base_venda = dataframe_vendas_na_base_venda.reset_index()
-
-        print(f'''={"="*20} VENDAS NA BASE PIVOTADAS {"="*20}=''')
-        print(dataframe_vendas_na_base_venda, "\n")
                 
         dataframe_vendas_na_base = pd.merge(
             dataframe_Base_de_Lojas,
@@ -172,17 +170,17 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol):
         dataframe_KIP = dataframe_base_de_lojas.copy()
         
         dataframe_KIP['YTD_VENDA'] = (
-            dataframe_KIP['HC_VENDA_POSITIVADA'] +
-            dataframe_KIP['FR_VENDA_POSITIVADA'] +
-            dataframe_KIP['BW_VENDA_POSITIVADA'] +
-            dataframe_KIP['PC_VENDA_POSITIVADA']
+            dataframe_KIP['HC_VENDA'] +
+            dataframe_KIP['FR_VENDA'] +
+            dataframe_KIP['BW_VENDA'] +
+            dataframe_KIP['PC_VENDA']
         )
         
         dataframe_KIP['YTD_FATURAMENTO'] = (
-            dataframe_KIP['HC_FATURAMENTO_POSITIVADA'] +
-            dataframe_KIP['FR_FATURAMENTO_POSITIVADA'] +
-            dataframe_KIP['BW_FATURAMENTO_POSITIVADA'] +
-            dataframe_KIP['PC_FATURAMENTO_POSITIVADA']
+            dataframe_KIP['HC_FATURAMENTO'] +
+            dataframe_KIP['FR_FATURAMENTO'] +
+            dataframe_KIP['BW_FATURAMENTO'] +
+            dataframe_KIP['PC_FATURAMENTO']
         )
         
         dataframe_KIP = dataframe_KIP.groupby("CLASSIFICACAO_PDV").agg({
@@ -192,6 +190,87 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol):
         
 
         return dataframe_KIP
+
+    def kips_Cob_Pond(self, dataframe_Vendas_Positivadas: pd.DataFrame) -> pd.DataFrame:
+        '''Função para criar a segunda coluna dos KIPs voltado a Cobertura Ponderada,
+        onde a função irá agrupar CLASSIFICACAO_PDV: "Pond. Rede" e "Pond. Indep." somando as positivadas'''
+
+        dataframe_KIP = dataframe_Vendas_Positivadas.copy()
+
+        dataframe_KIP['CobPond_VENDA'] = (
+            dataframe_KIP['HC_VENDA_POSITIVADA'] +
+            dataframe_KIP['FR_VENDA_POSITIVADA'] +
+            dataframe_KIP['BW_VENDA_POSITIVADA'] +
+            dataframe_KIP['PC_VENDA_POSITIVADA']
+        )
+        
+        dataframe_KIP['CobPond_FATURAMENTO'] = (
+            dataframe_KIP['HC_FATURAMENTO_POSITIVADA'] +
+            dataframe_KIP['FR_FATURAMENTO_POSITIVADA'] +
+            dataframe_KIP['BW_FATURAMENTO_POSITIVADA'] +
+            dataframe_KIP['PC_FATURAMENTO_POSITIVADA']
+        )
+        
+        dataframe_KIP = dataframe_KIP.groupby("CLASSIFICACAO_PDV").agg({
+            "CobPond_VENDA": "sum",
+            "CobPond_FATURAMENTO": "sum"
+        }).reset_index()
+
+        dataframe_KIP = dataframe_KIP[dataframe_KIP["CLASSIFICACAO_PDV"].isin(["Pond. Rede", "Pond. Indep."])]       
+
+        return dataframe_KIP
+    
+    def kips_Sort_Pond(self, dataframe_Vendas_Positivadas: pd.DataFrame) -> pd.DataFrame:
+        '''Função para criar a terceira coluna dos KIPs voltado a Sortimento Ponderada,
+        onde a função irá agrupar CLASSIFICACAO_PDV: "Pond. Rede" e "Pond. Indep." somando as positivadas'''
+
+        dataframe_KIP = dataframe_Vendas_Positivadas.copy()
+
+        return dataframe_KIP
+
+    def kips_Sort_Cob_Num(self, dataframe_Vendas_Positivadas: pd.DataFrame) -> pd.DataFrame:
+        '''Função para criar a quarta coluna dos KIPs voltado a Sortimento Cobertura Numérica,'''
+        dataframe_KIP = dataframe_Vendas_Positivadas.copy()
+
+        dataframe_KIP['CobNum_VENDA'] = (
+            dataframe_KIP['HC_VENDA_POSITIVADA'] +
+            dataframe_KIP['FR_VENDA_POSITIVADA'] +
+            dataframe_KIP['BW_VENDA_POSITIVADA'] +
+            dataframe_KIP['PC_VENDA_POSITIVADA']
+        )
+        
+        dataframe_KIP['CobNum_FATURAMENTO'] = (
+            dataframe_KIP['HC_FATURAMENTO_POSITIVADA'] +
+            dataframe_KIP['FR_FATURAMENTO_POSITIVADA'] +
+            dataframe_KIP['BW_FATURAMENTO_POSITIVADA'] +
+            dataframe_KIP['PC_FATURAMENTO_POSITIVADA']
+        )
+        
+        dataframe_KIP = dataframe_KIP.groupby("CLASSIFICACAO_PDV").agg({
+            "CobNum_VENDA": "sum",
+            "CobNum_FATURAMENTO": "sum",
+        }).reset_index()
+
+        dataframe_KIP = dataframe_KIP[dataframe_KIP["CLASSIFICACAO_PDV"].isin(["Num. A", "Num. B", "Num. C"])]       
+
+        return dataframe_KIP
+    
+    def kips_tabela(self, lista_dataframes: list[pd.DataFrame]) -> pd.DataFrame:
+        '''Função para criar a tabela final dos KIPs, onde a função irá concatenar os dataframes dos KIPs criados anteriormente'''
+
+        ordem_classificacao_pdv = ["Pond. Rede", "Pond. Indep.", "Num. A", "Num. B", "Num. C", "Atacados"]
+
+        dataframe_KIP_final = pd.concat(
+            [dataframe.set_index("CLASSIFICACAO_PDV") for dataframe in lista_dataframes],
+            axis=1
+        )
+
+        dataframe_KIP_final = dataframe_KIP_final.reindex(ordem_classificacao_pdv)
+        dataframe_KIP_final = dataframe_KIP_final.dropna(how="all").reset_index()
+
+        return dataframe_KIP_final
+    
+
 
 if __name__ == "__main__":
     diretorio = "dados"
@@ -221,9 +300,6 @@ if __name__ == "__main__":
         }
     )
 
-    print(f'''={"="*20} BASE DE LOJAS {"="*20}=''')
-    print(dataframe_BaseDeLojas, "\n")
-
     dataframe_unico_PPA = servidor.importar_excel(
         Inicial_name="Unico_",
         Sheet_name="EANS_PPA",
@@ -241,10 +317,6 @@ if __name__ == "__main__":
             "EAN_REGULAR": "str"
         }
     )
-
-    print(f'''={"="*20} BASE DE EANs PPA {"="*20}=''')
-    print(dataframe_unico_PPA, "\n")
-
 
     dataframe_ponderadas_meta = servidor.importar_excel(
         Inicial_name="Unico_",
@@ -267,10 +339,6 @@ if __name__ == "__main__":
         {"VALO_MINIMO_PARA_CONSIDERAR_POSITIVADA": "first"}
         ).reset_index()
 
-    print(f'''={"="*20} BASE DE METAS PONDERADAS {"="*20}=''')
-    print(dataframe_ponderadas_meta, "\n")
-
-
     base_sql_CNPJ_vendas = servidor.importar_excel(
         Inicial_name="Padrão_de_Vendas",
         Pular_linha=0,
@@ -289,22 +357,12 @@ if __name__ == "__main__":
         }
     )
 
-    print(f'''={"="*20} BASE DE VENDAS POR CNPJ {"="*20}=''')
-    print(base_sql_CNPJ_vendas, "\n")
-
     '''Correlacionar as bases de dados'''
 
     tabela_vendas_fora_da_base, tabela_vendas_na_base = servidor.criar_ean_fora_da_base(
         dataframe_unico_PPA=dataframe_unico_PPA,
         base_sql_vendas=base_sql_CNPJ_vendas
     )
-
-    print(f'''={"="*20} TABELA DE VENDAS FORA DA BASE {"="*20}=''') # 1° Tabela
-    print(tabela_vendas_fora_da_base, "\n")
-
-    print(f'''={"="*20} TABELA DE VENDAS NA BASE {"="*20}=''') # 2° Tabela
-    print(tabela_vendas_na_base, "\n")
-    # Mes = "ABRIL"
 
     dataframe_BaseDeLojas = servidor.validacao_positivas(
         dataframe_vendas_na_base=tabela_vendas_na_base,
@@ -325,27 +383,30 @@ if __name__ == "__main__":
             "PC_VENDA": "float",
         }
     )
-    print(f'''={"="*20} PLANILHA DE VENDAS POSITIVADAS {"="*20}=''')
-    print(dataframe_BaseDeLojas, "\n")
 
     positivacao_calculada = servidor.calcular_positivacao(
         dataframe_vendas=dataframe_BaseDeLojas,
         dataframe_ponderadas_meta=dataframe_ponderadas_meta
     )
 
-    print(f'''={"="*20} PLANILHA DE VENDAS POSITIVADAS CALCULADA {"="*20}=''')
-    print(positivacao_calculada, "\n")
+    dataframe_KIP = servidor.kips_YTD_por_PDV(dataframe_BaseDeLojas)
+    dataframe_KIP_CobPond = servidor.kips_Cob_Pond(positivacao_calculada)
+    dataframe_KIP_Sort_Num = servidor.kips_Sort_Cob_Num(positivacao_calculada)
+    dataframe_KIP_final = servidor.kips_tabela([dataframe_KIP, dataframe_KIP_CobPond, dataframe_KIP_Sort_Num])
 
     '''Exportar os DataFrames correlacionados para arquivos Excel'''
 
-    dataframes_para_exportar = {
-        "Vendas_Por_CNPJ": base_sql_CNPJ_vendas,
-        "Base_de_Lojas": dataframe_BaseDeLojas,
-        "Base_de_EANs_PPA": dataframe_unico_PPA,
-        "Vendas_Fora_da_Base": tabela_vendas_fora_da_base,
-        "Vendas_Na_Base": tabela_vendas_na_base,
-        "Metas_Ponderadas": dataframe_ponderadas_meta,
-        "Vendas_Positivadas": positivacao_calculada
-    }
+    kip = servidor.metas_e_realizado(tabela_vendas_na_base, positivacao_calculada, dataframe_BaseDeLojas)
+    print(kip)
 
-    servidor.exportar_para_excel(dataframes_para_exportar)
+    # dataframes_para_exportar = {
+    #     "Vendas_Por_CNPJ": base_sql_CNPJ_vendas,
+    #     "Base_de_Lojas": dataframe_BaseDeLojas,
+    #     "Base_de_EANs_PPA": dataframe_unico_PPA,
+    #     "Vendas_Fora_da_Base": tabela_vendas_fora_da_base,
+    #     "Vendas_Na_Base": tabela_vendas_na_base,
+    #     "Metas_Ponderadas": dataframe_ponderadas_meta,
+    #     "Vendas_Positivadas": positivacao_calculada
+    # }
+
+    # servidor.exportar_para_excel(dataframes_para_exportar)

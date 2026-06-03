@@ -1,115 +1,63 @@
 import pandas as pd
 
 class PrincipalKips():
-    BUS = ("BW", "FR", "HC", "PC")
-    METRICAS_REALIZADO = (
-        ("YTD", "VENDAS", "VLR_VENDA", "Real (R$)", False),
-        ("YTD", "FATURAMENTO", "VLR_FATURAMENTO", "Real (R$)", False),
-        ("Cob. Ponderada", "VENDAS", "QTD_VENDA_POSITIVADA", "Redes", True),
-        ("Cob. Ponderada", "FATURAMENTO", "QTD_FATURAMENTO_POSITIVADA", "Redes", True),
-        ("Cob. Numérica", "VENDAS", "COB_NUMERICA_VENDA", "PDVs", True),
-        ("Cob. Numérica", "FATURAMENTO", "COB_NUMERICA_FATURAMENTO", "PDVs", True)
-    )
-
     def __init__(self) -> None:
-        '''Esta classe tem como objetivo de realizar as principais etapas do processo de tratamento de dados, 
-        como padronização de colunas, conversão de tipos de dados e importação de arquivos xlsx'''
+        '''Esta classe tem como objetivo de realizar as principais LPIs para o acompanhamento de metas e realizado UNI.CO'''
 
-    def _contar_positivados(self, dataframe: pd.DataFrame, coluna: str) -> int:
-        if coluna not in dataframe.columns:
-            return 0
+    def _kpi_YTD_por_BU(self, dataframe_df_geral: pd.DataFrame) -> pd.DataFrame:
+        '''Função para calcular o KPI de YTD por BU, onde o objetivo é calcular o valor total por BU e TIPO_VLR
+        
+        Parametros:
 
-        return int(
-            pd.to_numeric(
-                dataframe[coluna],
-                errors="coerce"
-            ).fillna(0).eq(1).sum()
-        )
-
-    def _calcular_positivados_por_bu(self, dataframe_Positivadas: pd.DataFrame) -> pd.DataFrame:
-        return pd.DataFrame([
-            {
-                "BU": bu,
-                "QTD_VENDA_POSITIVADA": self._contar_positivados(
-                    dataframe_Positivadas,
-                    f"{bu}_VENDA_POSITIVADA"
-                ),
-                "QTD_FATURAMENTO_POSITIVADA": self._contar_positivados(
-                    dataframe_Positivadas,
-                    f"{bu}_FATURAMENTO_POSITIVADA"
-                )
-            }
-            for bu in self.BUS
-        ])
-
-    def _calcular_cobertura_numerica(self, dataframe_Positivadas: pd.DataFrame) -> pd.DataFrame:
-        if "TIPO" in dataframe_Positivadas.columns:
-            tipo = dataframe_Positivadas["TIPO"].astype(str).str.strip().str.casefold()
-            base_numerica = dataframe_Positivadas[tipo.isin(["numérica", "numerica"])]
-        else:
-            base_numerica = dataframe_Positivadas.iloc[0:0]
-
-        def contar_cnpjs_positivados(coluna: str) -> int:
-            if coluna not in base_numerica.columns or "CNPJ" not in base_numerica.columns:
-                return 0
-
-            positivado = pd.to_numeric(base_numerica[coluna], errors="coerce").fillna(0).eq(1)
-            return int(base_numerica.loc[positivado, "CNPJ"].dropna().nunique())
-
-        return pd.DataFrame([
-            {
-                "BU": bu,
-                "COB_NUMERICA_VENDA": contar_cnpjs_positivados(f"{bu}_VENDA_POSITIVADA"),
-                "COB_NUMERICA_FATURAMENTO": contar_cnpjs_positivados(f"{bu}_FATURAMENTO_POSITIVADA")
-            }
-            for bu in self.BUS
-        ])
-
-    def _calcular_base_metas_e_realizado(self, dataframe_Vendas_Na_Base: pd.DataFrame,
-                                         dataframe_Positivadas: pd.DataFrame) -> pd.DataFrame:
-        kip = dataframe_Vendas_Na_Base.groupby("BU", as_index=False).agg({
-            "VLR_VENDA": "sum",
-            "VLR_FATURAMENTO": "sum"
+        dataframe_df_geral: DataFrame contendo as colunas "BU", "TIPO_VLR" e "VALOR"'''
+        kip_YTD = dataframe_df_geral.groupby(["BU", "TIPO_VLR"], as_index=False).agg({
+            "VALOR": "sum"
         })
+        kip_YTD["KPI"] = "YTD"
+        kip_YTD["AE"] = "MD"
+        kip_YTD["Unidade_de_Medida"] = "Real (R$)"
+        kip_YTD = kip_YTD.rename(columns={"VALOR": "Realizado"})
+        return kip_YTD
 
-        kip = kip.merge(
-            self._calcular_positivados_por_bu(dataframe_Positivadas),
-            on="BU",
-            how="outer"
-        )
-        kip = kip.merge(
-            self._calcular_cobertura_numerica(dataframe_Positivadas),
-            on="BU",
-            how="outer"
-        )
-
-        colunas_realizado = [coluna for _, _, coluna, _, _ in self.METRICAS_REALIZADO]
-        kip[colunas_realizado] = kip[colunas_realizado].fillna(0)
-        kip["AE"] = "MD"
-
-        return kip
-
-    def _montar_tabela_metas_e_realizado(self, kip: pd.DataFrame) -> pd.DataFrame:
-        linhas = []
-
-        for kpi, tipo, coluna, unidade, inteiro in self.METRICAS_REALIZADO:
-            realizado = pd.to_numeric(kip[coluna], errors="coerce").fillna(0)
-            realizado = realizado.astype(int) if inteiro else realizado.round(2)
-
-            linhas.append(
-                kip[["BU", "AE"]].assign(
-                    KPI=kpi,
-                    TIPO=tipo,
-                    Realizado=realizado,
-                    Unidade_de_Medida=unidade
-                )
-            )
-
-        return pd.concat(linhas, ignore_index=True)
-
-    def metas_e_realizado(self, dataframe_Vendas_Na_Base: pd.DataFrame,
-                          dataframe_Positivadas: pd.DataFrame,
-                          dataframe_Base_de_Lojas: pd.DataFrame) -> pd.DataFrame:
+    def _kpi_COB_ponderada_por_BU(self, dataframe_df_geral: pd.DataFrame) -> pd.DataFrame:
+        '''Função para calcular o KPI de Cobertura Ponderada por BU, onde o objetivo é calcular a quantidade de redes positivadas por BU e TIPO_VLR
+        
+        Parametros:
+        dataframe_df_geral: DataFrame contendo as colunas "BU", "TIPO_VLR", "CNPJ_REDE" e "POSITIVADO"'''
+        dataframe_df_geral = dataframe_df_geral[dataframe_df_geral["POSITIVADO"] == 1]
+        kip_COB_ponderada = dataframe_df_geral.groupby(["BU", "TIPO_VLR"], as_index=False).agg({
+            "CNPJ_REDE": "nunique"
+        })
+        kip_COB_ponderada["KPI"] = "Cob. Ponderada"
+        kip_COB_ponderada["AE"] = "MD"
+        kip_COB_ponderada["Unidade_de_Medida"] = "Redes"
+        kip_COB_ponderada = kip_COB_ponderada.rename(columns={"CNPJ_REDE": "Realizado"})
+        return kip_COB_ponderada
+    
+    def _kpi_COB_numerica_por_BU(self, dataframe_df_geral: pd.DataFrame) -> pd.DataFrame:
+        '''Função para calcular o KPI de Cobertura Numérica por BU, onde o objetivo é calcular a quantidade de PDVs positivados por BU e TIPO_VLR
+        
+        Parametros:
+        dataframe_df_geral: DataFrame contendo as colunas "BU", "TIPO_VLR", "CNPJ" e "POSITIVADO"'''
+        dataframe_df_geral = dataframe_df_geral[(dataframe_df_geral["POSITIVADO"] == 1) & (dataframe_df_geral["TIPO"] == "Numérica")]
+        kip_COB_numerica = dataframe_df_geral.groupby(["BU", "TIPO_VLR"], as_index=False).agg({
+            "CNPJ": "nunique"
+        })
+        kip_COB_numerica["KPI"] = "Cob. Numérica"
+        kip_COB_numerica["AE"] = "MD"
+        kip_COB_numerica["Unidade_de_Medida"] = "PDVs"
+        kip_COB_numerica = kip_COB_numerica.rename(columns={"CNPJ": "Realizado"})
+        return kip_COB_numerica
+    
+    def _padrao_dataframe(self, dataframe_df_geral: pd.DataFrame) -> pd.DataFrame:
+        '''Função para criar um DataFrame padrão contendo as combinações únicas de BU e TIPO_VLR
+        
+        Parametros:
+        dataframe_df_geral: DataFrame contendo as colunas "BU" e "TIPO_VLR"'''
+        dataframe_padrao = dataframe_df_geral[["BU", "TIPO_VLR"]].drop_duplicates()
+        return dataframe_padrao.reset_index(drop=True)
+    
+    def metas_e_realizado(self, dataframe_df_geral: pd.DataFrame) -> pd.DataFrame:
         '''Criação do principal acompanhamento de metas e realizado, onde o objetivo é
         criar uma base de dados que contenha as informações principais para o acompanhamento
         de metas e realizado UNI.CO
@@ -119,12 +67,34 @@ class PrincipalKips():
                          Sortimento Ponderada: 3 Faixas de EANs por BU
                          Faturamento - YTD: Valor total por BU
                          Cob. Ponderada: 3 Faixas de rede positivadas por BU
-                         Execução Ponderada: Não sera implementando nesta etapa'''
+                         Execução Ponderada: Não sera implementando nesta etapa
+                         
+        Parametros:
+        dataframe_df_geral: DataFrame contendo as colunas "BU", "TIPO_VLR", "VALOR", "CNPJ_REDE", "CNPJ", "POSITIVADO" e "TIPO"'''
         
-        kip = self._calcular_base_metas_e_realizado(
-            dataframe_Vendas_Na_Base,
-            dataframe_Positivadas
-        )
+        padrao = self._padrao_dataframe(dataframe_df_geral)
+        kip_YTD = self._kpi_YTD_por_BU(dataframe_df_geral)
+        kip_COB_ponderada = self._kpi_COB_ponderada_por_BU(dataframe_df_geral)
+        kip_COB_numerica = self._kpi_COB_numerica_por_BU(dataframe_df_geral)
+
+        resultado = pd.concat([kip_YTD, kip_COB_ponderada, kip_COB_numerica], ignore_index=True)
         
-        return self._montar_tabela_metas_e_realizado(kip)
+        kpis = resultado["KPI"].unique()
+        combinacoes_completas = []
         
+        for kpi in kpis:
+            kpi_data = resultado[resultado["KPI"] == kpi]
+            merged = padrao.merge(kpi_data, on=["BU", "TIPO_VLR"], how="left")
+            merged["KPI"] = kpi
+            combinacoes_completas.append(merged)
+        
+        resultado_final = pd.concat(combinacoes_completas, ignore_index=True)
+        resultado_final["Realizado"] = resultado_final["Realizado"].fillna(0)
+        resultado_final["AE"] = resultado_final["AE"].fillna("MD")
+        resultado_final["Unidade_de_Medida"] = resultado_final["Unidade_de_Medida"].fillna(resultado_final.groupby("KPI")["Unidade_de_Medida"].transform("first"))
+        
+        resultado_final = resultado_final.rename(columns={"TIPO_VLR": "TIPO"})
+        resultado_final = resultado_final[["BU", "AE", "KPI", "TIPO",
+                                           "Realizado", "Unidade_de_Medida"]]
+
+        return resultado_final

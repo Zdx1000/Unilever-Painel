@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import warnings
+from datetime import datetime
+import locale
 
 warnings.filterwarnings(
     "ignore",
@@ -67,17 +69,27 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
         except Exception as e:
             print(f"Erro ao exportar o DataFrame para Excel: {e}")
 
-    def criar_ean_fora_da_base(self, dataframe_unico_PPA: pd.DataFrame, base_sql_vendas: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def criar_ean_fora_da_base(self, dataframe_unico_PPA: pd.DataFrame, base_sql_vendas: pd.DataFrame, mes_atual: str) -> tuple[pd.DataFrame, pd.DataFrame]:
         dataframe_unico_PPA = dataframe_unico_PPA.drop_duplicates(subset=["EAN_REGULAR"])
         base_com_bu = base_sql_vendas.merge(
             dataframe_unico_PPA[["EAN_REGULAR", "BU"]].drop_duplicates(),
             on="EAN_REGULAR",
             how="left"
         )
+        base_com_bu = base_com_bu[base_com_bu["MES"] == mes_atual].copy()
 
         tabela_vendas_fora_da_base = base_com_bu[base_com_bu["BU"].isna()]
+        
         tabela_vendas_fora_da_base = tabela_vendas_fora_da_base.drop(columns=["BU"])
+        tabela_vendas_fora_da_base = tabela_vendas_fora_da_base.melt(
+            id_vars=[coluna for coluna in tabela_vendas_fora_da_base.columns if coluna not in ["VLR_VENDA", "VLR_FATURAMENTO"]],
+            value_vars=["VLR_VENDA", "VLR_FATURAMENTO"],
+            var_name="TIPO_VLR",
+            value_name="VALOR"
+        )
+        tabela_vendas_fora_da_base["TIPO_VLR"] = tabela_vendas_fora_da_base["TIPO_VLR"].replace({"VLR_VENDA": "VENDAS", "VLR_FATURAMENTO": "FATURAMENTO"})
         tabela_vendas_na_base = base_com_bu[base_com_bu["BU"].notna()]
+
 
         return tabela_vendas_fora_da_base, tabela_vendas_na_base
 
@@ -93,7 +105,7 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
         dataframe_Base_de_Lojas_BU["BU"] = dataframe_Base_de_Lojas_BU["BU"].map({"HC": ["HC"], "FR": ["FR"], "BPC": ["BW", "PC"]})
         dataframe_Base_de_Lojas_BU = dataframe_Base_de_Lojas_BU.explode("BU", ignore_index=True)
 
-        dataframe_vendas_na_base_bu = dataframe_vendas_na_base.groupby(["CNPJ", "BU"], as_index=False).agg({
+        dataframe_vendas_na_base_bu = dataframe_vendas_na_base.groupby(["ANO", "MES", "CNPJ", "BU"], as_index=False).agg({
             "VLR_VENDA": "sum",
             "VLR_FATURAMENTO": "sum"
         })
@@ -126,14 +138,13 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
         )
 
         base_df_geral = base_df_geral.rename(columns={"VALO_MINIMO_PARA_CONSIDERAR_POSITIVADA": "META_PONDERADA"})
-
         return base_df_geral
     
-    def kips_YTD_por_PDV(self, dataframe_base_de_lojas: pd.DataFrame) -> pd.DataFrame:
+    def kips_YTD_por_PDV(self, dataframe_base_de_lojas: pd.DataFrame, mes_atual: str) -> pd.DataFrame:
         '''Função para criar a primeira coluna dos KIPs voltado a vendas YTD por PDV,
         onde a função irá agrupar a base de Lojas por PDV e somar as Vendas e Faturamento'''
 
-        dataframe_KIP = dataframe_base_de_lojas.copy()
+        dataframe_KIP = dataframe_base_de_lojas[dataframe_base_de_lojas["MES"] == mes_atual].copy()
 
         dataframe_KIP = dataframe_KIP.groupby(["CLASSIFICACAO_PDV", "TIPO_VLR"]).agg({
             "VALOR": "sum"
@@ -141,11 +152,11 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
 
         return dataframe_KIP
 
-    def kips_Cob_Pond(self, base_df_geral: pd.DataFrame) -> pd.DataFrame:
+    def kips_Cob_Pond(self, base_df_geral: pd.DataFrame, mes_atual: str) -> pd.DataFrame:
         '''Função para criar a segunda coluna dos KIPs voltado a Cobertura Ponderada,
         onde a função irá agrupar CLASSIFICACAO_PDV: "Pond. Rede" e "Pond. Indep." somando as positivadas'''      
 
-        base_df_geral_KPI = base_df_geral.copy()
+        base_df_geral_KPI = base_df_geral[base_df_geral["MES"] == mes_atual].copy()
 
         base_df_geral_KPI = base_df_geral_KPI.groupby(["CLASSIFICACAO_PDV", "TIPO_VLR"]).agg({
             "POSITIVADO": "sum"
@@ -206,6 +217,8 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
 
 if __name__ == "__main__":
     diretorio = "dados"
+    locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+    mes_atual = datetime.now().strftime("%B").upper()
     servidor = Servidor(Diretorios=diretorio)
 
     '''Importação dos arquivos xlsx'''
@@ -293,7 +306,8 @@ if __name__ == "__main__":
 
     tabela_vendas_fora_da_base, tabela_vendas_na_base = servidor.criar_ean_fora_da_base(
         dataframe_unico_PPA=dataframe_unico_PPA,
-        base_sql_vendas=base_sql_CNPJ_vendas
+        base_sql_vendas=base_sql_CNPJ_vendas,
+        mes_atual=mes_atual
     )
 
     base_df_geral = servidor.validacao_positivas(
@@ -318,25 +332,22 @@ if __name__ == "__main__":
         }
     )
 
-    dataframe_KIP = servidor.kips_YTD_por_PDV(base_df_geral)
-    dataframe_KIP_CobPond = servidor.kips_Cob_Pond(base_df_geral)
+    dataframe_KIP = servidor.kips_YTD_por_PDV(base_df_geral, mes_atual=mes_atual)
+    dataframe_KIP_CobPond = servidor.kips_Cob_Pond(base_df_geral, mes_atual=mes_atual)
     dataframe_KIP_Sort_Num = servidor.kips_Sort_Cob_Num(base_df_geral)
     dataframe_KIP_final = servidor.kips_tabela(dataframe_KIP, dataframe_KIP_CobPond, dataframe_KIP_Sort_Num)
+    dataframe_KIP_final = servidor.padronizar_colunas(dataframe_KIP_final)
 
     '''Exportar os DataFrames correlacionados para arquivos Excel'''
 
-    principal_kpi = servidor.metas_e_realizado(base_df_geral)
+    principal_kpi = servidor.metas_e_realizado(base_df_geral, mes_atual=mes_atual)
 
 
+    dataframes_para_exportar = {
+        "Principal_KPI": principal_kpi,
+        "dataframe_KIP_final": dataframe_KIP_final,
+        "Base_geral": base_df_geral,
+        "Vendas_Fora_da_Base": tabela_vendas_fora_da_base,
+    }
 
-    # dataframes_para_exportar = {
-    #     "Vendas_Por_CNPJ": base_sql_CNPJ_vendas,
-    #     "Base_de_Lojas": dataframe_BaseDeLojas,
-    #     "Base_de_EANs_PPA": dataframe_unico_PPA,
-    #     "Vendas_Fora_da_Base": tabela_vendas_fora_da_base,
-    #     "Vendas_Na_Base": tabela_vendas_na_base,
-    #     "Metas_Ponderadas": dataframe_ponderadas_meta,
-    #     "Vendas_Positivadas": positivacao_calculada
-    # }
-
-    # servidor.exportar_para_excel(dataframes_para_exportar)
+    servidor.exportar_para_excel(dataframes_para_exportar)

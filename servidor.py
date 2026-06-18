@@ -13,8 +13,9 @@ from components.ImportarXlsx import ImportarXlsx
 from components.ConveterType import ConveterType
 from components.PadronizarCol import PadronizarCol
 from components.PrincipalKips import PrincipalKips
+from components.Teste_unitario import DataframePrincipal_detalhe
     
-class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips):
+class Servidor(ImportarXlsx, ConveterType, PadronizarCol, PrincipalKips, DataframePrincipal_detalhe):
     '''Classe principal do projeto, responsável por coordenar as operações de importação, padronização, conversão e correlação dos dados.
     A classe Servidor herda as funcionalidades das classes ImportarXlsx, ConveterType, PadronizarCol e PrincipalKips, permitindo a execução de todas as etapas do processo de análise de dados.
     
@@ -298,9 +299,85 @@ if __name__ == "__main__":
             "CODIGO": "int",
             "EAN_REGULAR": "str",
             "VLR_VENDA": "float",
-            "VLR_FATURAMENTO": "float"
+            "VLR_FATURAMENTO": "float",
+            "QUANTIDADE": "int",
+            "CODIGO_RCA": "str",
+            "NOME_RCA": "str",
+            "CODIGO_SUPERVISOR": "str",
+            "NOME_SUPERVISOR": "str"
         }
     )
+
+    sortimento_ponderada = servidor.importar_excel(
+        Inicial_name="Unico_",
+        Sheet_name="Sort. - Pond",
+        Colunas=["BU", "EAN Regular", "Outros EANS válidos"],
+        Pular_linha=7,
+        Mult_xlsx=False
+    )
+
+    sortimento_ponderada = servidor.padronizar_colunas(sortimento_ponderada)
+    sortimento_ponderada = servidor.converter_tipo_dados(sortimento_ponderada,
+        Dict={
+            "BU": "str",
+            "EAN_REGULAR": "str",
+            "OUTROS_EANS_VALIDOS": "str"
+        }
+    )
+
+    sortimento_numetica = servidor.importar_excel(
+        Inicial_name="Unico_",
+        Sheet_name="Sort. - Num",
+        Colunas=["BU", "PPA"],
+        Pular_linha=7,
+        Mult_xlsx=False
+    )
+
+    sortimento_numetica = servidor.padronizar_colunas(sortimento_numetica)
+    sortimento_numetica = servidor.converter_tipo_dados(sortimento_numetica,
+        Dict={
+            "BU": "str",
+            "PPA": "str"
+        }
+    )
+
+    metas_e_realizado = servidor.importar_excel(
+        Inicial_name="Unico_",
+        Sheet_name="Metas e realizado",
+        Pular_linha=8,
+        Mult_xlsx=False
+    )
+
+    metas_e_realizado = servidor.padronizar_colunas(metas_e_realizado)
+    metas_e_realizado = servidor.converter_tipo_dados(metas_e_realizado,
+        Dict={
+            "REGIAO": "str",
+            "AE": "str",
+            "KPI": "str",
+            "BU": "str",
+            "UNIDADE_DE_MEDIDA": "str",
+            "(100%_DO_GANHO)": "float",
+            "(50%_DO_GANHO)": "float",
+            "(30%_DO_GANHO)": "float",
+            "POTENCIAL_GANHO": "float",
+            "REALIZADO": "str",
+            "%_DA_META_1": "str"
+        }
+    )
+
+    PPA = servidor.dataframe_Base_PPA(
+        dataframe_unico_PPA=dataframe_unico_PPA,
+        sortimento_ponderada=sortimento_ponderada,
+        sortimento_numetica=sortimento_numetica
+    )
+
+    dataFrame_principal_detalhe = servidor.dataframe_principal(
+        dataframe_BaseDeLojas=dataframe_BaseDeLojas,
+        dataframe_base_PPA=PPA,
+        dataframe_ponderadas_meta=dataframe_ponderadas_meta,
+        base_sql=base_sql_CNPJ_vendas
+    )
+    exit()
 
     '''Correlacionar as bases de dados'''
 

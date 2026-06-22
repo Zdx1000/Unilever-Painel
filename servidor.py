@@ -351,17 +351,12 @@ if __name__ == "__main__":
     metas_e_realizado = servidor.padronizar_colunas(metas_e_realizado)
     metas_e_realizado = servidor.converter_tipo_dados(metas_e_realizado,
         Dict={
-            "REGIAO": "str",
-            "AE": "str",
             "KPI": "str",
             "BU": "str",
             "UNIDADE_DE_MEDIDA": "str",
             "(100%_DO_GANHO)": "float",
             "(50%_DO_GANHO)": "float",
             "(30%_DO_GANHO)": "float",
-            "POTENCIAL_GANHO": "float",
-            "REALIZADO": "str",
-            "%_DA_META_1": "str"
         }
     )
 
@@ -371,12 +366,14 @@ if __name__ == "__main__":
         sortimento_numetica=sortimento_numetica
     )
 
-    dataFrame_principal_detalhe = servidor.dataframe_principal(
+    dataFrame_principal_detalhe, metas = servidor.dataframe_principal(
         dataframe_BaseDeLojas=dataframe_BaseDeLojas,
         dataframe_base_PPA=PPA,
         dataframe_ponderadas_meta=dataframe_ponderadas_meta,
-        base_sql=base_sql_CNPJ_vendas
+        base_sql=base_sql_CNPJ_vendas,
+        Type_metas_layt=metas_e_realizado
     )
+
     exit()
 
     '''Correlacionar as bases de dados'''

@@ -37,7 +37,8 @@ class DataframePrincipal_detalhe():
                             dataframe_BaseDeLojas: pd.DataFrame,
                             dataframe_base_PPA: pd.DataFrame,
                             dataframe_ponderadas_meta: pd.DataFrame,
-                            base_sql: pd.DataFrame
+                            base_sql: pd.DataFrame,
+                            Type_metas_layt: pd.DataFrame
                             ) -> pd.DataFrame:
         '''Função para criar o DataFrame principal, onde o objetivo é criar um DataFrame contendo as colunas "BU", "TIPO_VLR", "CNPJ", "TIPO", "MES" e "VALOR" a partir dos DataFrames de Base de Lojas, Base de PPA, Metas Ponderadas e Base SQL
         
@@ -120,6 +121,14 @@ class DataframePrincipal_detalhe():
         # sortimento_ponderada = dataframes_iniciais["sortimento_ponderada"] # Já finalizado
         # sortimento_numetica = dataframes_iniciais["sortimento_numetica"] # Já finalizado
         # metas_e_realizado = dataframes_iniciais["metas_e_realizado"] # Falta implementar
+        
+        metas = Type_metas_layt[[
+            "KPI",
+            "BU",
+            "UNIDADE_DE_MEDIDA",
+            "(100%_DO_GANHO)",
+            "(50%_DO_GANHO)",
+            "(30%_DO_GANHO)",
+        ]]
 
-        print(dataFrame_principal_detalhe.columns.tolist())
-        return dataFrame_principal_detalhe
+        return dataFrame_principal_detalhe, metas

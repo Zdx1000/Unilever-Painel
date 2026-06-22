@@ -118,9 +118,9 @@ class DataframePrincipal_detalhe():
             "KPI",
             "BU",
             "UNIDADE_DE_MEDIDA",
-            "(100%_DO_GANHO)",
-            "(50%_DO_GANHO)",
-            "(30%_DO_GANHO)",
+            "100%_DO_GANHO",
+            "50%_DO_GANHO",
+            "30%_DO_GANHO",
         ]]
 
         return dataFrame_principal_detalhe, metas

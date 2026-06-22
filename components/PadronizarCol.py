@@ -19,7 +19,9 @@ class PadronizarCol():
                                         .replace("Ó", "O")\
                                             .replace("Ú", "U")\
                                                 .replace("Ç", "C")\
-                                                    .replace("Ã", "A")
+                                                    .replace("Ã", "A")\
+                                                        .replace("(", "")\
+                                                            .replace(")", "")
                 dataframe.rename(columns={coluna: nova_coluna}, inplace=True)
             else:
                 print(f"A coluna '{coluna}' não foi encontrada no DataFrame.")

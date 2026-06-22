@@ -114,14 +114,6 @@ class DataframePrincipal_detalhe():
             "GRUPO"
         ]]
 
-        # dataframe_BaseDeLojas = dataframes_iniciais["dataframe_BaseDeLojas"] # Já finalizado
-        # dataframe_unico_PPA = dataframes_iniciais["dataframe_unico_PPA"] # Já finalizado
-        # dataframe_ponderadas_meta = dataframes_iniciais["dataframe_ponderadas_meta"] # Já finalizado
-        # base_sql = dataframes_iniciais["base_sql_CNPJ_vendas"] # Já finalizado
-        # sortimento_ponderada = dataframes_iniciais["sortimento_ponderada"] # Já finalizado
-        # sortimento_numetica = dataframes_iniciais["sortimento_numetica"] # Já finalizado
-        # metas_e_realizado = dataframes_iniciais["metas_e_realizado"] # Falta implementar
-        
         metas = Type_metas_layt[[
             "KPI",
             "BU",

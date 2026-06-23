@@ -96,6 +96,7 @@ class DataframePrincipal_detalhe():
             "META_POSITIVADA",
             "ANO",
             "MES",
+            "MES_NUM",
             "CNPJ",
             "CODIGO",
             "VENDA",

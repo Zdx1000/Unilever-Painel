@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
 import warnings
-from datetime import datetime
-import locale
 
 warnings.filterwarnings(
     "ignore",
@@ -48,8 +46,6 @@ class Servidor(ImportarXlsx, ConveterType, PadronizarCol, DataframePrincipal_det
 
 if __name__ == "__main__":
     diretorio = "dados"
-    locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
-    mes_atual = datetime.now().strftime("%B").upper()
     servidor = Servidor(Diretorios=diretorio)
 
     '''Importação dos arquivos xlsx'''
@@ -125,6 +121,7 @@ if __name__ == "__main__":
     Dict={
             "ANO": "int",
             "MES": "str",
+            "MES_NUM": "int",
             "CNPJ": "str",
             "CODIGO": "int",
             "EAN_REGULAR": "str",
@@ -184,9 +181,9 @@ if __name__ == "__main__":
             "KPI": "str",
             "BU": "str",
             "UNIDADE_DE_MEDIDA": "str",
-            "(100%_DO_GANHO)": "float",
-            "(50%_DO_GANHO)": "float",
-            "(30%_DO_GANHO)": "float",
+            "100%_DO_GANHO": "float",
+            "50%_DO_GANHO": "float",
+            "30%_DO_GANHO": "float",
         }
     )
 
